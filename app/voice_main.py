@@ -1,0 +1,37 @@
+"""
+Minimal FastAPI application exposing only the voice-bot endpoints.
+
+Run with:
+    uvicorn app.voice_main:app --host 0.0.0.0 --port 8001 --reload
+"""
+
+from fastapi import FastAPI
+
+from app.routers.voice_bot import router as voice_bot_router
+
+
+app = FastAPI(
+    title="Voice Bot Service",
+    description="AI voice bot service using Twilio Media Streams",
+)
+
+app.include_router(voice_bot_router)
+
+
+@app.get("/health")
+async def health() -> dict:
+    return {"status": "ok"}
+
+
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run(
+        "app.voice_main:app",
+        host="0.0.0.0",
+        port=8001,
+        reload=True,
+        log_level="info",
+    )
+
+

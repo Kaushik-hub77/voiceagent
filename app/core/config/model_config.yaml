@@ -1,0 +1,286 @@
+# ============================================================
+# LLM Model Configuration
+# ============================================================
+# This is the central configuration file for all LLM models
+# and their usage across the application.
+# ============================================================
+
+default_model: "gpt-3.5-turbo"
+
+# ============================================================
+# Pipeline-Specific Model Selection
+# ============================================================
+# Define which models to use for specific pipelines based on
+# their requirements (reasoning, context length, cost, etc.)
+pipeline_models:
+  draft_assistance:
+    primary: "gpt-4"
+    fallback: "gpt-4-turbo"
+    reason: "Needs strong reasoning and creative suggestions"
+    
+  bias_checker:
+    primary: "gpt-4"
+    fallback: "gpt-3.5-turbo"
+    reason: "Requires careful analysis and consistent evaluation"
+
+  # Bias checker sub-stages (performance optimization + clearer routing)
+  # - explain: keep higher-quality model
+  # - rewrite/language: use faster model
+  bias_checker_explain:
+    primary: "gpt-4"
+    fallback: "gpt-4-turbo"
+    reason: "Human-readable explanations must be accurate and well-reasoned"
+
+  bias_checker_rewrite:
+    primary: "gpt-4o-mini"
+    fallback: "gpt-3.5-turbo"
+    reason: "Rewrites are short/structured; prioritize latency"
+
+  bias_checker_language:
+    primary: "gpt-4o-mini"
+    fallback: "gpt-3.5-turbo"
+    reason: "Language-only phrase extraction; prioritize latency"
+    
+  review_summarizer:
+    primary: "gpt-4.1"
+    fallback: "gpt-4.1"
+    reason: "Can handle longer contexts from multiple reviews"
+    
+  general:
+    primary: "gpt-4-turbo"
+    fallback: "gpt-3.5-turbo"
+    reason: "Default for general-purpose tasks"
+
+# ============================================================
+# Model Definitions
+# ============================================================
+models:
+  gpt-5.1:
+    provider: openai
+    name: gpt-5.1
+    context_window: 200000
+    max_tokens: 4096
+    input_cost_per_token: 0.00001
+    output_cost_per_token: 0.00003
+    capabilities:
+      - text_generation
+      - code_generation
+      - analysis
+      - long_context
+
+  gpt-5-mini:
+    provider: openai
+    name: gpt-5-mini
+    context_window: 400000
+    max_tokens: 128000
+    input_cost_per_token: 0.00000025
+    output_cost_per_token: 0.000002
+    capabilities:
+      - text_generation
+      - code_generation
+      - analysis
+      - long_context
+
+  gpt-5-nano:
+    provider: openai
+    name: gpt-5-nano
+    context_window: 400000
+    max_tokens: 128000
+    input_cost_per_token: 0.00000005
+    output_cost_per_token: 0.0000004
+    capabilities:
+      - text_generation
+      - code_generation
+      - analysis
+      - long_context
+
+  gpt-4.1-mini:
+    provider: openai
+    name: gpt-4.1-mini
+    context_window: 1047576
+    max_tokens: 32768
+    input_cost_per_token: 0.0000004
+    output_cost_per_token: 0.0000016
+    capabilities:
+      - text_generation
+      - code_generation
+      - analysis
+      - long_context
+
+  gpt-4:
+    provider: openai
+    name: gpt-4
+    context_window: 8192
+    max_tokens: 4096
+    input_cost_per_token: 0.00003
+    output_cost_per_token: 0.00006
+    capabilities:
+      - text_generation
+      - code_generation
+      - analysis
+
+  gpt-4-turbo:
+    provider: openai
+    name: gpt-4-turbo
+    context_window: 128000
+    max_tokens: 4096
+    input_cost_per_token: 0.00001
+    output_cost_per_token: 0.00003
+    capabilities:
+      - text_generation
+      - code_generation
+      - analysis
+      - long_context
+
+  gpt-4o-mini:
+    provider: openai
+    name: gpt-4o-mini
+    context_window: 128000
+    max_tokens: 4096
+    input_cost_per_token: 0.000005
+    output_cost_per_token: 0.000015
+    capabilities:
+      - text_generation
+      - analysis
+      - long_context
+
+  gpt-3.5-turbo:
+    provider: openai
+    name: gpt-3.5-turbo
+    context_window: 16385
+    max_tokens: 4096
+    input_cost_per_token: 0.0000015
+    output_cost_per_token: 0.000002
+    capabilities:
+      - text_generation
+      - analysis
+
+  claude-3-opus:
+    provider: anthropic
+    name: claude-3-opus-20240229
+    context_window: 200000
+    max_tokens: 4096
+    input_cost_per_token: 0.000015
+    output_cost_per_token: 0.000075
+    capabilities:
+      - text_generation
+      - code_generation
+      - analysis
+      - long_context
+
+  claude-3-sonnet:
+    provider: anthropic
+    name: claude-3-sonnet-20240229
+    context_window: 200000
+    max_tokens: 4096
+    input_cost_per_token: 0.000003
+    output_cost_per_token: 0.000015
+    capabilities:
+      - text_generation
+      - code_generation
+      - analysis
+      - long_context
+
+  claude-3-haiku:
+    provider: anthropic
+    name: claude-3-haiku-20240307
+    context_window: 200000
+    max_tokens: 4096
+    input_cost_per_token: 0.00000025
+    output_cost_per_token: 0.00000125
+    capabilities:
+      - text_generation
+      - analysis
+
+  gemini-pro:
+    provider: google
+    name: gemini-pro
+    context_window: 32768
+    max_tokens: 8192
+    input_cost_per_token: 0.0000005
+    output_cost_per_token: 0.0000015
+    capabilities:
+      - text_generation
+      - analysis
+
+  gemini-pro-vision:
+    provider: google
+    name: gemini-pro-vision
+    context_window: 16384
+    max_tokens: 4096
+    input_cost_per_token: 0.0000005
+    output_cost_per_token: 0.0000015
+    capabilities:
+      - text_generation
+      - vision
+      - analysis
+
+# ============================================================
+# Pipeline-Specific LLM Configurations
+# ============================================================
+# Fine-tuned parameters for each pipeline type
+pipeline_configs:
+  draft_assistance:
+    temperature: 0.2
+    max_tokens: 2000
+    top_p: 0.85
+    description: "Very low temperature for strict tone adherence and consistent output"
+    
+  bias_checker:
+    temperature: 0.1
+    max_tokens: 1500
+    top_p: 0.8
+    description: "Very low temperature for consistent analysis"
+
+  # Bias checker sub-stages use the same baseline config, with rewrites slightly shorter.
+  bias_checker_explain:
+    temperature: 0.2
+    max_tokens: 1500
+    top_p: 0.8
+    description: "Explanations: low temperature, moderately sized outputs"
+
+  bias_checker_rewrite:
+    temperature: 0.3
+    max_tokens: 600
+    top_p: 0.9
+    description: "Rewrites: concise, faster outputs"
+
+  bias_checker_language:
+    temperature: 0.2
+    max_tokens: 1200
+    top_p: 0.8
+    description: "Language extraction: structured JSON with phrase lists"
+    
+  review_summarizer:
+    temperature: 0.2
+    max_tokens: 2500
+    top_p: 0.9
+    description: "Low temperature for consistent summaries"
+    
+  general:
+    temperature: 0.7
+    max_tokens: 2000
+    top_p: 0.95
+    description: "Balanced settings for general tasks"
+
+# ============================================================
+# Provider Configurations
+# ============================================================
+providers:
+  openai:
+    base_url: "https://api.openai.com/v1"
+    timeout: 60
+    retry_attempts: 3
+    backoff_factor: 2
+
+  anthropic:
+    base_url: "https://api.anthropic.com"
+    timeout: 60
+    retry_attempts: 3
+    backoff_factor: 2
+
+  google:
+    base_url: "https://generativelanguage.googleapis.com"
+    timeout: 60
+    retry_attempts: 3
+    backoff_factor: 2
