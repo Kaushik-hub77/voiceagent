@@ -12,6 +12,7 @@ from twilio.rest import Client
 from twilio.twiml.voice_response import Connect, VoiceResponse
 
 from app.agent_builder.builders import VoiceAgentBuilder
+from app.core.voice.sarvam_provider import SarvamVoiceProvider
 
 
 logger = logging.getLogger(__name__)
@@ -75,9 +76,10 @@ async def handle_media_stream(websocket: WebSocket) -> None:
     """
     await websocket.accept()
     stream_sid = None
+    greeting_sent = False
 
     async def input_audio_stream() -> AsyncIterator[str]:
-        nonlocal stream_sid
+        nonlocal stream_sid, greeting_sent
 
         # Initial configuration event for the voice agent
         yield json.dumps(
@@ -104,6 +106,28 @@ async def handle_media_stream(websocket: WebSocket) -> None:
                 if event == "start":
                     stream_sid = data.get("start", {}).get("streamSid")
                     logger.info("Stream started", streamSid=stream_sid)
+
+                    # Play initial Cumma greeting once when the call connects,
+                    # using the Sarvam voice provider.
+                    if not greeting_sent and stream_sid:
+                        greeting_sent = True
+                        greeting_text = (
+                            "Hi, we are from Cumma, we are glad that you're "
+                            "interested in us. How can we help?"
+                        )
+                        async for audio_chunk in sarvam_voice_provider.speak(
+                            greeting_text,
+                            session_id=stream_sid,
+                        ):
+                            await websocket.send_text(
+                                json.dumps(
+                                    {
+                                        "event": "media",
+                                        "streamSid": stream_sid,
+                                        "media": {"payload": audio_chunk},
+                                    }
+                                )
+                            )
                 elif event == "media":
                     media = data.get("media") or {}
                     payload = media.get("payload")
@@ -142,10 +166,15 @@ async def handle_media_stream(websocket: WebSocket) -> None:
                     )
                 )
 
+    # TODO: introduce a proper session manager and config resolver to build
+    # agents per caller/tenant. For now we construct a single Sarvam-backed
+    # agent instance for the lifetime of this WebSocket.
+    sarvam_voice_provider = SarvamVoiceProvider()
     voice_agent = (
         VoiceAgentBuilder()
-        .set_voice("alloy")
+        .set_voice("sarvam-default")
         .set_input_audio_format("g711_ulaw")
+        .set_voice_provider(sarvam_voice_provider)
         .build()
     )
 
