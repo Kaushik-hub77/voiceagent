@@ -55,6 +55,12 @@ class Settings(BaseSettings):
     ANTHROPIC_API_KEY: Optional[str] = None
     GOOGLE_API_KEY: Optional[str] = None
 
+    # Sarvam voice (TTS) provider
+    SARVAM_API_KEY: Optional[str] = None
+    SARVAM_TARGET_LANGUAGE_CODE: str = "en-IN"
+    SARVAM_TTS_MODEL: str = "bulbul:v3"
+    SARVAM_SPEAKER: str = "shubh"
+
     # External services
     EXTERNAL_API_BASE_URL: Optional[str] = None
 
