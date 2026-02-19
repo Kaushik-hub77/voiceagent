@@ -7,15 +7,16 @@ Run with:
 
 from fastapi import FastAPI
 
-from app.routers.voice_bot import router as voice_bot_router
+from app.routers.ringai import calls_router, webhooks_router
 
 
 app = FastAPI(
     title="Voice Bot Service",
-    description="AI voice bot service using Twilio Media Streams",
+    description="AI voice bot service using RingAI",
 )
 
-app.include_router(voice_bot_router)
+app.include_router(calls_router)
+app.include_router(webhooks_router)
 
 
 @app.get("/health")
