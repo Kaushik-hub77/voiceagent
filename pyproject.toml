@@ -42,7 +42,6 @@ dependencies = [
     "pandas>=2.1.0",
     "pymongo>=4.15.5",
     "pyjwt>=2.8.0",
-    "twilio>=9.0.0",
 ]
 
 [project.optional-dependencies]
