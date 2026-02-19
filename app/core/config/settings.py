@@ -33,9 +33,9 @@ class Settings(BaseSettings):
         "http://localhost:3000", 
         "http://localhost:8000", 
         "http://127.0.0.1:8000", 
-        "http://127.0.0.1:3000",
-        "https://apps.traineryhcm.com",
-        "https://traineryhcm.com"  # Main domain
+        "http://127.0.0.1:3000"
+        "https://cumma.in",
+        "https://www.cumma.in"
     ]
     ALLOWED_METHODS: List[str] = ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"]
     ALLOWED_HEADERS: List[str] = ["*"]
@@ -60,6 +60,10 @@ class Settings(BaseSettings):
     SARVAM_TARGET_LANGUAGE_CODE: str = "en-IN"
     SARVAM_TTS_MODEL: str = "bulbul:v3"
     SARVAM_SPEAKER: str = "shubh"
+
+    # RingAI voice calling provider
+    RING_API_KEY: Optional[str] = None
+    RING_BASE_URL: Optional[str] = None
 
     # External services
     EXTERNAL_API_BASE_URL: Optional[str] = None
