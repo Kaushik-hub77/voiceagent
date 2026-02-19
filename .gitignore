@@ -213,3 +213,6 @@ test_*.py
 # Local development
 local_settings.py
 local_config.yaml
+
+# Call recordings storage
+data/recordings/
