@@ -17,7 +17,7 @@ from app.schemas.ringai.webhook_config import (
 from app.services.ringai.webhook_config_service import WebhookConfigService
 
 logger = get_logger(__name__)
-router = APIRouter(prefix="/api/v1/ringai/webhooks", tags=["ringai-webhooks"])
+router = APIRouter(prefix="/ringai/webhooks", tags=["ringai-webhooks"])
 
 # Initialize service
 _webhook_config_service = WebhookConfigService()

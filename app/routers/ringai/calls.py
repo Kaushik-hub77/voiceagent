@@ -15,7 +15,7 @@ from app.schemas.ringai.responses import CallInitiatedResponse
 from app.services.ringai.call_service import RingAICallService
 
 logger = get_logger(__name__)
-router = APIRouter(prefix="/api/v1/ringai", tags=["ringai"])
+router = APIRouter(prefix="/ringai", tags=["ringai"])
 
 # Initialize service
 _call_service = RingAICallService()
