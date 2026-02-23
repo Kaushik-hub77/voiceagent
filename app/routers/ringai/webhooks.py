@@ -23,7 +23,7 @@ from app.schemas.ringai.webhooks import (
 from app.services.ringai.recording_service import CallRecordingService
 
 logger = get_logger(__name__)
-router = APIRouter(prefix="/api/v1/ringai/webhooks", tags=["ringai-webhooks"])
+router = APIRouter(prefix="/ringai/webhooks", tags=["ringai-webhooks"])
 
 # Initialize recording service
 _recording_service = CallRecordingService()
