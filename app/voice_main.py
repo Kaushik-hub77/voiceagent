@@ -7,7 +7,7 @@ Run with:
 
 from fastapi import FastAPI
 
-from app.routers.ringai import calls_router, webhooks_router
+from app.routers.ringai import calls_router, webhooks_router, webhook_config_router
 
 
 app = FastAPI(
@@ -17,6 +17,7 @@ app = FastAPI(
 
 app.include_router(calls_router)
 app.include_router(webhooks_router)
+app.include_router(webhook_config_router)
 
 
 @app.get("/health")

@@ -64,6 +64,7 @@ class Settings(BaseSettings):
     # RingAI voice calling provider
     RING_API_KEY: Optional[str] = None
     RING_BASE_URL: Optional[str] = None
+    CLOUDFRONT_BASE_URL: Optional[str] = None
 
     # External services
     EXTERNAL_API_BASE_URL: Optional[str] = None
