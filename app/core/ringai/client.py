@@ -3,7 +3,7 @@ RingAI HTTP client for making outbound calls
 """
 
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, List
 
 import httpx
 from httpx import AsyncClient, Response
@@ -169,5 +169,92 @@ class RingAIClient:
             raise
         except Exception as e:
             logger.error("Unexpected error calling RingAI", error=str(e), endpoint=endpoint)
+            raise RingAIAPIError(f"Unexpected error: {str(e)}") from e
+
+    async def configure_webhook_subscriptions(
+        self, agent_id: str, event_subscriptions: List[Dict[str, Any]]
+    ) -> Dict[str, Any]:
+        """
+        Configure webhook subscriptions for an agent
+
+        Args:
+            agent_id: RingAI agent ID
+            event_subscriptions: List of event subscription configurations
+
+        Returns:
+            Response data from RingAI API
+
+        Raises:
+            RingAIAuthenticationError: For authentication errors
+            RingAIAPIError: For API errors
+        """
+        await self._ensure_client()
+
+        endpoint = "/agent/v1"
+        payload = {
+            "operation": "edit_event_subscriptions",
+            "agent_id": agent_id,
+            "event_subscriptions": event_subscriptions,
+        }
+
+        logger.info(
+            "Configuring webhook subscriptions",
+            agent_id=agent_id,
+            event_count=len(event_subscriptions),
+        )
+
+        try:
+            response = await self._client.patch(endpoint, json=payload)
+            result = self._handle_response(response)
+
+            logger.info(
+                "Webhook subscriptions configured successfully",
+                agent_id=agent_id,
+            )
+
+            return result
+
+        except httpx.RequestError as e:
+            logger.error("Request error configuring webhooks", error=str(e), endpoint=endpoint)
+            raise RingAIAPIError(f"Request failed: {str(e)}") from e
+        except (RingAIAuthenticationError, RingAIAPIError):
+            raise
+        except Exception as e:
+            logger.error("Unexpected error configuring webhooks", error=str(e), endpoint=endpoint)
+            raise RingAIAPIError(f"Unexpected error: {str(e)}") from e
+
+    async def get_agent_subscriptions(self, agent_id: str) -> Dict[str, Any]:
+        """
+        Get current webhook subscriptions for an agent
+
+        Args:
+            agent_id: RingAI agent ID
+
+        Returns:
+            Agent data including event_subscriptions
+
+        Raises:
+            RingAIAuthenticationError: For authentication errors
+            RingAIAPIError: For API errors
+        """
+        await self._ensure_client()
+
+        endpoint = f"/agent/v1/{agent_id}"
+
+        logger.info("Getting agent subscriptions", agent_id=agent_id)
+
+        try:
+            response = await self._client.get(endpoint)
+            result = self._handle_response(response)
+
+            return result
+
+        except httpx.RequestError as e:
+            logger.error("Request error getting subscriptions", error=str(e), endpoint=endpoint)
+            raise RingAIAPIError(f"Request failed: {str(e)}") from e
+        except (RingAIAuthenticationError, RingAIAPIError):
+            raise
+        except Exception as e:
+            logger.error("Unexpected error getting subscriptions", error=str(e), endpoint=endpoint)
             raise RingAIAPIError(f"Unexpected error: {str(e)}") from e
 
