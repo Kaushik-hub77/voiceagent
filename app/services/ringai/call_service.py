@@ -7,8 +7,8 @@ from typing import Dict, Any, Optional
 
 from app.core.ringai.client import RingAIClient, RingAIError
 from app.core.utils.logger import get_logger
-from app.schemas.ringai.requests import InitiateCallRequest
-from app.schemas.ringai.responses import CallInitiatedResponse
+from app.schemas.ringai.requests import InitiateCallRequest, StartCampaignRequest
+from app.schemas.ringai.responses import CallInitiatedResponse, SaveCampaignResponse, StartCampaignResponse
 
 logger = get_logger(__name__)
 
@@ -106,4 +106,65 @@ class RingAICallService:
                 mobile_number=request.mobile_number,
             )
             raise RingAIError(f"Failed to initiate call: {str(e)}") from e
+
+
+    # save campaign to articulaye the bulk patch of calls
+    async def save_campaign(self, data: Dict[str, Any], file_content: bytes, filename: str, content_type: str) -> SaveCampaignResponse:
+        """
+        Save a campaign in RingAI
+        """
+        logger.info("Saving RingAI campaign", campaign_name=data.get("campaign_name"))
+
+        try:
+            client = await self._get_client()
+            files = {"file": (filename, file_content, content_type)}
+            response = await client.save_campaign(data, files)
+
+            return SaveCampaignResponse(**response)
+
+        except RingAIError as e:
+            logger.error(
+                "Failed to save RingAI campaign",
+                error=str(e)
+            )
+            raise
+        except Exception as e:
+            logger.error(
+                "Unexpected error saving campaign",
+                error=str(e)
+            )
+            raise RingAIError(f"Failed to save campaign: {str(e)}") from e
+
+
+#    //start bulk calls
+    async def start_campaign(self, request: StartCampaignRequest) -> StartCampaignResponse:
+        """
+        Start a campaign in RingAI
+        """
+        logger.info("Starting RingAI campaign", list_id=request.list_id)
+
+        try:
+            client = await self._get_client()
+            response = await client.start_campaign(request.model_dump())
+
+            return StartCampaignResponse(
+                success=True,
+                message=response.get("message", "Campaign started successfully"),
+                raw_response=response
+            )
+
+        except RingAIError as e:
+            logger.error(
+                "Failed to start RingAI campaign",
+                error=str(e),
+                list_id=request.list_id
+            )
+            raise
+        except Exception as e:
+            logger.error(
+                "Unexpected error starting campaign",
+                error=str(e),
+                list_id=request.list_id
+            )
+            raise RingAIError(f"Failed to start campaign: {str(e)}") from e
 

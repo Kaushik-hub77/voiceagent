@@ -75,14 +75,18 @@ class InitiateCallRequest(BaseModel):
     name: str = Field(description="Name of the person to call")
     mobile_number: str = Field(description="Mobile number in E.164 format (e.g., +918778898282)")
     agent_id: str = Field(description="RingAI agent ID (prompt configured in RingAI dashboard)")
-    from_number: str = Field(description="Caller ID number in E.164 format")
+    from_number: Optional[str] = Field(None, description="Caller ID number in E.164 format")
+    number_pool_id: Optional[str] = Field(None, description="Number pool ID to use instead of from_number")
+    from_number_id: Optional[str] = Field(None, description="From number ID to use instead of from_number")
     custom_args_values: Optional[CustomArgsValues] = Field(None, description="Custom arguments")
     call_config: Optional[CallConfig] = Field(None, description="Call configuration")
 
     @field_validator("mobile_number", "from_number")
     @classmethod
-    def validate_phone_number(cls, v: str) -> str:
+    def validate_phone_number(cls, v: Optional[str]) -> Optional[str]:
         """Validate E.164 phone number format"""
+        if not v:
+            return v
         if not v.startswith("+"):
             raise ValueError("Phone number must be in E.164 format (start with +)")
         if len(v) < 8 or len(v) > 15:
@@ -103,8 +107,16 @@ class InitiateCallRequest(BaseModel):
             "name": self.name,
             "mobile_number": self.mobile_number,
             "agent_id": self.agent_id,
-            "from_number": self.from_number,
         }
+        
+        if self.from_number:
+            payload["from_number"] = self.from_number
+            
+        if getattr(self, "number_pool_id", None):
+            payload["number_pool_id"] = self.number_pool_id
+
+        if getattr(self, "from_number_id", None):
+            payload["from_number_id"] = self.from_number_id
 
         # Handle custom_args_values (prompts are configured in RingAI dashboard via agent_id)
         if self.custom_args_values:
@@ -127,3 +139,9 @@ class InitiateCallRequest(BaseModel):
 
         return payload
 
+
+class StartCampaignRequest(BaseModel):
+    """Request model for starting a campaign"""
+    agent_id: str = Field(description="ID of the agent that will handle all campaign calls")
+    list_id: str = Field(description="ID of the uploaded campaign contact list")
+    from_numbers: list[str] = Field(description="Array of phone numbers to use for outbound calls")

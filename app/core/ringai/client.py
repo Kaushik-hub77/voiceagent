@@ -147,7 +147,7 @@ class RingAIClient:
         """
         await self._ensure_client()
 
-        endpoint = "/calling/outbound/individual"
+        endpoint = "/calling/v2/outbound/individual"
         logger.info("Initiating RingAI call", endpoint=endpoint)
 
         try:
@@ -169,6 +169,64 @@ class RingAIClient:
             raise
         except Exception as e:
             logger.error("Unexpected error calling RingAI", error=str(e), endpoint=endpoint)
+            raise RingAIAPIError(f"Unexpected error: {str(e)}") from e
+
+#    //saving campaign before making bulk api calls
+    async def save_campaign(self, data: Dict[str, Any], files: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Save a bulk calling campaign
+        """
+        await self._ensure_client()
+
+        endpoint = "/campaign/save"
+        logger.info("Initiating campaign save", endpoint=endpoint)
+
+        try:
+            # Override content type for multipart request
+            headers = {
+                "X-API-KEY": self.api_key
+            }
+            
+            response = await self._client.post(endpoint, data=data, files=files, headers=headers)
+            result = self._handle_response(response)
+
+            logger.info("RingAI campaign saved successfully")
+
+            return result
+
+        except httpx.RequestError as e:
+            logger.error("Request error saving campaign", error=str(e), endpoint=endpoint)
+            raise RingAIAPIError(f"Request failed: {str(e)}") from e
+        except (RingAIAuthenticationError, RingAIAPIError):
+            raise
+        except Exception as e:
+            logger.error("Unexpected error saving campaign", error=str(e), endpoint=endpoint)
+            raise RingAIAPIError(f"Unexpected error: {str(e)}") from e
+
+    async def start_campaign(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Start a bulk calling campaign
+        """
+        await self._ensure_client()
+
+        endpoint = "/campaign/start"
+        logger.info("Starting campaign", endpoint=endpoint)
+
+        try:
+            response = await self._client.post(endpoint, json=payload)
+            result = self._handle_response(response)
+
+            logger.info("RingAI campaign started successfully")
+
+            return result
+
+        except httpx.RequestError as e:
+            logger.error("Request error starting campaign", error=str(e), endpoint=endpoint)
+            raise RingAIAPIError(f"Request failed: {str(e)}") from e
+        except (RingAIAuthenticationError, RingAIAPIError):
+            raise
+        except Exception as e:
+            logger.error("Unexpected error starting campaign", error=str(e), endpoint=endpoint)
             raise RingAIAPIError(f"Unexpected error: {str(e)}") from e
 
     async def configure_webhook_subscriptions(

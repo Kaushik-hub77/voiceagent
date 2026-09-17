@@ -3,45 +3,26 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "ai-llm-service"
+name = "cumma-voice-caller"
 version = "1.0.0"
-description = "Production-grade LLM microservice with plug-and-play model support"
+description = "RingAI Voice Caller Service"
 authors = [
-    {name = "AI Team", email = "ai-team@company.com"}
+    {name = "Cumma", email = "hello@cumma.in"}
 ]
 readme = "README.md"
 license = {text = "MIT"}
 requires-python = ">=3.9"
-classifiers = [
-    "Development Status :: 5 - Production/Stable",
-    "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
-    "Operating System :: OS Independent",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
-    "Topic :: Scientific/Engineering :: Artificial Intelligence",
-]
 dependencies = [
-    "fastapi==0.104.1",
-    "uvicorn[standard]==0.24.0",
-    "pydantic==2.5.0",
-    "pydantic-settings==2.1.0",
-    "openai>=1.40.0",
-    "jinja2==3.1.2",
-    "structlog==23.2.0",
+    "fastapi>=0.104.1",
+    "uvicorn[standard]>=0.24.0",
+    "pydantic>=2.5.0",
+    "pydantic-settings>=2.1.0",
+    "httpx>=0.23,<1.0",
+    "structlog>=23.2.0",
     "python-json-logger>=2.0.0",
-    "python-jose[cryptography]==3.3.0",
-    "httpx>=0.23,<0.25",
-    "jsonschema>=4.19.0",
-    "pyyaml>=6.0.0",
-    "nltk>=3.8.0",
-    "tiktoken>=0.5.0",
-    "numpy>=1.24.0",
-    "pandas>=2.1.0",
-    "pymongo>=4.15.5",
+    "python-jose[cryptography]>=3.3.0",
     "pyjwt>=2.8.0",
+    "python-dotenv>=1.0.0"
 ]
 
 [project.optional-dependencies]
@@ -52,119 +33,20 @@ dev = [
     "black>=23.0.0",
     "isort>=5.12.0",
     "flake8>=6.0.0",
-    "mypy>=1.7.0",
-    "python-dotenv>=1.0.0"
+    "mypy>=1.7.0"
 ]
-docs = [
-    "mkdocs>=1.5.0",
-    "mkdocs-material>=9.4.0"
-]
-
-[project.urls]
-Homepage = "https://github.com/company/ai-llm-service"
-Documentation = "https://ai-llm-service.readthedocs.io/"
-Repository = "https://github.com/company/ai-llm-service"
-Issues = "https://github.com/company/ai-llm-service/issues"
 
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["app*"]
 
-[tool.setuptools.package-data]
-"app" = ["core/config/*.yaml", "core/prompts/**/*.jinja"]
-
 [tool.black]
 line-length = 88
 target-version = ['py39', 'py310', 'py311']
-include = '\.pyi?$'
-extend-exclude = '''
-/(
-  # directories
-  \.eggs
-  | \.git
-  | \.hg
-  | \.mypy_cache
-  | \.tox
-  | \.venv
-  | build
-  | dist
-)/
-'''
 
 [tool.isort]
 profile = "black"
-multi_line_output = 3
-line_length = 88
-known_first_party = ["app"]
-known_third_party = [
-    "fastapi",
-    "uvicorn",
-    "pydantic",
-    "openai",
-    "jinja2",
-    "structlog"
-]
-
-[tool.mypy]
-python_version = "3.9"
-warn_return_any = true
-warn_unused_configs = true
-disallow_untyped_defs = true
-disallow_incomplete_defs = true
-check_untyped_defs = true
-disallow_untyped_decorators = true
-no_implicit_optional = true
-warn_redundant_casts = true
-warn_unused_ignores = true
-warn_no_return = true
-warn_unreachable = true
-strict_equality = true
-
-[[tool.mypy.overrides]]
-module = [
-    "nltk.*",
-    "tiktoken.*",
-    "jsonschema.*"
-]
-ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py", "*_test.py"]
-python_classes = ["Test*"]
-python_functions = ["test_*"]
-addopts = [
-    "--strict-markers",
-    "--strict-config",
-    "--verbose",
-    "--tb=short",
-    "--cov=app",
-    "--cov-report=term-missing",
-    "--cov-report=html:htmlcov",
-    "--cov-fail-under=80"
-]
-markers = [
-    "unit: Unit tests",
-    "integration: Integration tests",
-    "slow: Slow running tests",
-    "llm: Tests requiring LLM API calls"
-]
-
-[tool.coverage.run]
-source = ["app"]
-omit = [
-    "*/tests/*",
-    "*/test_*.py",
-    "app/main.py"  # Entry point
-]
-
-[tool.coverage.report]
-exclude_lines = [
-    "pragma: no cover",
-    "def __repr__",
-    "raise AssertionError",
-    "raise NotImplementedError",
-    "if __name__ == .__main__.:",
-    "class .*\\bProtocol\\):",
-    "@(abc\\.)?abstractmethod"
-]
