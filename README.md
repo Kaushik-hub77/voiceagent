@@ -1,45 +1,45 @@
-## 📥 Download / Clone
+# Cumma Voice Caller
 
-# From your development directory
-git clone <your-repo-url> Cumma-voice-caller
-cd Cumma-voice-caller> Always run commands from the project root: `Cumma-voice-caller`.
+A fast, scalable voice caller application built with FastAPI and RingAI.
 
-## 🧱 Environment Setup (Windows, PowerShell)
-hell
-# 1. Create and activate virtualenv (Python 3.11)
+## 🧱 Environment Setup
+
+### 1. Prerequisites
+- **Python 3.11** or **3.12** is highly recommended (Python 3.14+ may fail to build certain dependencies).
+- Virtual environment (venv).
+
+### 2. Local Setup (Windows, PowerShell)
+```powershell
+# Create and activate virtualenv
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 
-# 2. Install the project and dependencies from pyproject.toml
+# Install the project and dependencies
 python -m pip install --upgrade pip
-pip install -e .This installs `fastapi`, `uvicorn`, `twilio`, and registers `app` as a package so imports like `app.routers.voice_bot` and `app.agent_builder.*` work.
+pip install -e .
+```
 
-## 🔑 Required Environment Variables
+### 3. Required Environment Variables
+Create a `.env` file in the root directory (or set these in your terminal) before running the voice service:
+```bash
+RING_API_KEY="your-ring-api-key"
+RING_BASE_URL="https://api.ring.ai"
+# Add other keys required by settings.py
+```
 
-Set these before running the voice service:
-hell
-# Twilio credentials
-$env:TWILIO_ACCOUNT_SID      = "<your-twilio-account-sid>"
-$env:TWILIO_AUTH_TOKEN       = "<your-twilio-auth-token>"
-$env:TWILIO_FROM_PHONE_NUMBER = "+15551234567"   # E.164 format
+## 🚀 Running the Service
 
-# Voice bot webhook + media stream host
-$env:TWILIO_VOICE_WEBHOOK_URL = "https://your-domain.com/voice-bot/incoming-call"
-$env:TWILIO_MEDIA_STREAM_HOST = "your-domain.com"  # host used in wss://<host>/voice-bot/media-streamFor local testing you can point these at an HTTPS tunnel (ngrok, Cloudflare Tunnel, etc.).
-
-## 🚀 Running the Voice Bot Service
-
+### Run Locally (with Uvicorn)
 From the project root, with `.venv` activated:
-hell
-# Development run (auto‑reload disabled or enabled as needed)
-python -m uvicorn app.voice_main:app --host 0.0.0.0 --port 8001 --reload- Health check: `GET http://localhost:8001/health` → `{"status": "ok"}`
-- Twilio Voice webhook: `POST https://<your-domain>/voice-bot/incoming-call`
-- Twilio Media Stream WebSocket: `wss://<TWILIO_MEDIA_STREAM_HOST>/voice-bot/media-stream`
+```powershell
+python -m uvicorn app.voice_main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+### Run with Docker (Recommended for Production)
+```powershell
+docker-compose up --build -d
+```
 
 ## 🧪 Quick Verification Checklist
-
-1. Virtualenv is active: PowerShell prompt shows `(.venv)` prefix.
-2. `pip show fastapi uvicorn twilio` all succeed.
-3. `python -m uvicorn app.voice_main:app --host 0.0.0.0 --port 8001` starts without import errors.
-4. `curl http://localhost:8001/health` returns `{"status":"ok"}`.
-5. Twilio Console points the number’s Voice URL to `/voice-bot/incoming-call`.
+1. Application starts successfully without errors.
+2. `curl http://localhost:8000/health` returns `{"status":"ok"}`.
