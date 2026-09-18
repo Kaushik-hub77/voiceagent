@@ -45,6 +45,10 @@ class Fast2SMSService:
         # Fast2SMS expects numbers without the leading + or spaces
         clean_number = mobile_number.replace("+", "").replace(" ", "").strip()
         
+        # If the number includes India's 91 country code (12 digits), strip it to 10 digits
+        if clean_number.startswith("91") and len(clean_number) == 12:
+            clean_number = clean_number[2:]
+        
         # Hardcode all fields except numbers as requested
         params = {
             "message_id": "33426",
