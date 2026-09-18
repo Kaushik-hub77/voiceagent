@@ -6,9 +6,9 @@ platform_analysis_completed, client_analysis_completed
 
 import logging
 from datetime import datetime
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
-from fastapi import APIRouter, Request, HTTPException, status
+from fastapi import APIRouter, Request, HTTPException, BackgroundTasks, status
 from fastapi.responses import JSONResponse
 
 from app.core.utils.logger import get_logger
@@ -21,27 +21,23 @@ from app.schemas.ringai.webhooks import (
     process_transcript,
 )
 from app.services.ringai.recording_service import CallRecordingService
+from app.services.fast2sms_service import Fast2SMSService
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/ringai/webhooks", tags=["ringai-webhooks"])
 
-# Initialize recording service
+# Initialize services
 _recording_service = CallRecordingService()
+_fast2sms_service = Fast2SMSService()
 
 
 @router.post("/events", status_code=status.HTTP_200_OK)
-async def handle_webhook_event(request: Request) -> JSONResponse:
+async def handle_webhook_event(
+    request: Request, 
+    background_tasks: BackgroundTasks
+) -> JSONResponse:
     """
     Unified webhook endpoint for all RingAI event types
-    
-    RingAI will POST to this endpoint with different event types:
-    - call_completed: Call finishes (transcript, duration, status)
-    - recording_completed: Recording is processed and ready
-    - platform_analysis_completed: AI analysis completes
-    - client_analysis_completed: Custom analysis completes
-    
-    Configure this URL in RingAI dashboard or via API.
-    Must return 200 OK within 30 seconds.
     """
     try:
         # Parse webhook payload
@@ -74,15 +70,22 @@ async def handle_webhook_event(request: Request) -> JSONResponse:
         # Route to appropriate handler based on event type
         if event_type == "call_completed":
             await _handle_call_completed(payload)
+            # Schedule post-call WhatsApp follow-up in background
+            background_tasks.add_task(_send_whatsapp_followup, payload)
+
         elif event_type == "recording_completed":
             await _handle_recording_completed(payload)
+
         elif event_type == "platform_analysis_completed":
             await _handle_platform_analysis(payload)
+            # If dynamic extraction happens post-analysis, schedule follow-up here as well
+            background_tasks.add_task(_send_whatsapp_followup, payload)
+
         elif event_type == "client_analysis_completed":
             await _handle_client_analysis(payload)
+
         else:
             logger.warning("Unknown event type", event_type=event_type, call_id=call_id)
-            # Still return 200 to acknowledge receipt
             return JSONResponse(
                 status_code=status.HTTP_200_OK,
                 content={"status": "received", "message": f"Unknown event type: {event_type}"},
@@ -97,12 +100,61 @@ async def handle_webhook_event(request: Request) -> JSONResponse:
         raise
     except Exception as e:
         logger.error("Error processing webhook", error=str(e), exc_info=True)
-        # Return 200 even on error to prevent retries (RingAI will retry on non-200)
-        # Log error for debugging
         return JSONResponse(
             status_code=status.HTTP_200_OK,
             content={"status": "error", "message": "Error processed, check logs"},
         )
+
+
+async def _send_whatsapp_followup(payload: Dict[str, Any]) -> None:
+    """
+    Extracts dynamic variables captured by RingAI during the call and dispatches WhatsApp template.
+    """
+    call_id = payload.get("call_id")
+    to_number = payload.get("to_number") or payload.get("phone_number")
+
+    if not to_number:
+        logger.warning("Cannot send WhatsApp followup: missing recipient number", call_id=call_id)
+        return
+
+    # Consolidate user data extracted during the conversation
+    custom_args = payload.get("custom_args_values") or {}
+    extracted_vars = payload.get("extracted_variables") or {}
+    analysis_data = payload.get("analysis_data") or {}
+    
+    if isinstance(analysis_data, dict):
+        extracted_analysis = analysis_data.get("extracted_data") or {}
+    else:
+        extracted_analysis = {}
+
+    user_data = {**custom_args, **extracted_vars, **extracted_analysis}
+
+    logger.info(
+        "Extracting conversation variables for WhatsApp followup",
+        call_id=call_id,
+        available_keys=list(user_data.keys()),
+    )
+
+    # Map dynamic variables captured in call logs (e.g., callback number, target link)
+    contact_phone = user_data.get("callback_number") or user_data.get("phone_number") or to_number
+    target_link = user_data.get("application_url") or "https://www.enabler.studio/#apply"
+
+    # Strict formatting (no leading/trailing spaces) to pass Meta parameter checks
+    variables = [
+        str(contact_phone).strip(),
+        str(target_link).strip(),
+    ]
+
+    try:
+        response = await _fast2sms_service.send_whatsapp_template(
+            mobile_number=to_number,
+            variables=variables,
+            media_url="https://cumma-images.s3.eu-north-1.amazonaws.com/enabler_studio.png",
+            udf1=call_id,
+        )
+        logger.info("WhatsApp followup dispatched successfully", call_id=call_id, response=response)
+    except Exception as e:
+        logger.error("Failed to dispatch WhatsApp followup", call_id=call_id, error=str(e))
 
 
 async def _handle_call_completed(payload: Dict[str, Any]) -> None:
@@ -110,15 +162,12 @@ async def _handle_call_completed(payload: Dict[str, Any]) -> None:
     try:
         event = CallCompletedEvent(**payload)
         
-        # Extract user_id from custom_args_values
         user_id = None
         if event.custom_args_values:
             user_id = event.custom_args_values.get("user_id") or event.custom_args_values.get("userId")
         
-        # Process transcript array to readable text
         transcription_text = process_transcript(event.transcript)
         
-        # Parse called_on timestamp
         called_on = None
         if event.called_on:
             try:
@@ -126,7 +175,6 @@ async def _handle_call_completed(payload: Dict[str, Any]) -> None:
             except Exception:
                 pass
         
-        # Create or update recording
         recording = CallRecording(
             call_id=event.call_id,
             user_id=user_id,
@@ -164,33 +212,20 @@ async def _handle_recording_completed(payload: Dict[str, Any]) -> None:
     """Handle recording_completed event - update recording URL"""
     try:
         event = RecordingCompletedEvent(**payload)
-        
-        # Get existing recording
         existing = await _recording_service.get_recording(event.call_id)
         
         if existing:
-            # Update recording URL and duration
             existing.recording_url = event.recording_url
             existing.recording_duration = event.recording_duration
             
-            # Generate filename from URL or call_id
             if event.recording_url:
-                # Extract filename from URL or use call_id
                 filename = event.recording_url.split("/")[-1] if "/" in event.recording_url else f"{event.call_id}.mp3"
                 existing.recording_filename = filename
             
             await _recording_service.save_recording(existing)
-            
-            logger.info(
-                "Recording completed event processed",
-                call_id=event.call_id,
-                recording_url=event.recording_url,
-            )
+            logger.info("Recording completed event processed", call_id=event.call_id)
         else:
-            logger.warning(
-                "Recording completed event but no call record found",
-                call_id=event.call_id,
-            )
+            logger.warning("Recording completed event but no call record found", call_id=event.call_id)
 
     except Exception as e:
         logger.error("Error handling recording_completed event", error=str(e), call_id=payload.get("call_id"))
@@ -200,31 +235,19 @@ async def _handle_platform_analysis(payload: Dict[str, Any]) -> None:
     """Handle platform_analysis_completed event"""
     try:
         event = PlatformAnalysisCompletedEvent(**payload)
-        
-        # Get existing recording
         existing = await _recording_service.get_recording(event.call_id)
         
         if existing:
-            # Update with platform analysis
             existing.platform_analysis = event.analysis_data.model_dump() if hasattr(event.analysis_data, "model_dump") else event.analysis_data
             
-            # Update transcript if not already set
             if not existing.transcription and event.transcript:
                 existing.transcription = process_transcript(event.transcript)
                 existing.transcript_raw = [entry.model_dump() if hasattr(entry, "model_dump") else entry for entry in event.transcript]
             
             await _recording_service.save_recording(existing)
-            
-            logger.info(
-                "Platform analysis completed event processed",
-                call_id=event.call_id,
-                classification=event.analysis_data.classification if hasattr(event.analysis_data, "classification") else None,
-            )
+            logger.info("Platform analysis completed event processed", call_id=event.call_id)
         else:
-            logger.warning(
-                "Platform analysis event but no call record found",
-                call_id=event.call_id,
-            )
+            logger.warning("Platform analysis event but no call record found", call_id=event.call_id)
 
     except Exception as e:
         logger.error("Error handling platform_analysis_completed event", error=str(e), call_id=payload.get("call_id"))
@@ -234,25 +257,14 @@ async def _handle_client_analysis(payload: Dict[str, Any]) -> None:
     """Handle client_analysis_completed event"""
     try:
         event = ClientAnalysisCompletedEvent(**payload)
-        
-        # Get existing recording
         existing = await _recording_service.get_recording(event.call_id)
         
         if existing:
-            # Update with client analysis
             existing.client_analysis = event.analysis_data
-            
             await _recording_service.save_recording(existing)
-            
-            logger.info(
-                "Client analysis completed event processed",
-                call_id=event.call_id,
-            )
+            logger.info("Client analysis completed event processed", call_id=event.call_id)
         else:
-            logger.warning(
-                "Client analysis event but no call record found",
-                call_id=event.call_id,
-            )
+            logger.warning("Client analysis event but no call record found", call_id=event.call_id)
 
     except Exception as e:
         logger.error("Error handling client_analysis_completed event", error=str(e), call_id=payload.get("call_id"))
@@ -260,56 +272,25 @@ async def _handle_client_analysis(payload: Dict[str, Any]) -> None:
 
 @router.get("/recordings/{call_id}", response_model=CallRecording)
 async def get_recording(call_id: str) -> CallRecording:
-    """
-    Retrieve call recording by call ID
-
-    Args:
-        call_id: RingAI call ID
-
-    Returns:
-        Call recording with transcription and metadata
-    """
     recording = await _recording_service.get_recording(call_id)
-    
     if not recording:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Recording not found for call_id: {call_id}",
         )
-    
     return recording
 
 
 @router.get("/recordings", response_model=list[CallRecording])
 async def list_recordings(phone_number: str = None, limit: int = 100) -> list[CallRecording]:
-    """
-    List call recordings
-
-    Args:
-        phone_number: Filter by phone number (optional)
-        limit: Maximum number of recordings to return (default: 100)
-
-    Returns:
-        List of call recordings
-    """
     if phone_number:
         recordings = await _recording_service.get_recordings_by_phone(phone_number)
     else:
         recordings = await _recording_service.list_recordings(limit=limit)
-    
     return recordings
 
 
 @router.get("/recordings/user/{user_id}", response_model=list[CallRecording])
 async def get_recordings_by_user(user_id: str) -> list[CallRecording]:
-    """
-    Retrieve all recordings for a user ID
-
-    Args:
-        user_id: User ID
-
-    Returns:
-        List of call recordings with CloudFront URLs
-    """
     recordings = await _recording_service.get_recordings_by_user_id(user_id)
     return recordings
