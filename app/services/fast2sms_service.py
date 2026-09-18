@@ -19,9 +19,22 @@ class Fast2SMSService:
             
         self.base_url = "https://www.fast2sms.com/dev/whatsapp"
         
-        # Hardcoding the static values from the curl for the template
-        self.message_id = "33426"
-        self.phone_number_id = "1052723054600851"
+        # Load template configuration from settings, with fallback defaults
+        self.message_id = settings.FAST2SMS_MESSAGE_ID
+        self.phone_number_id = settings.FAST2SMS_PHONE_NUMBER_ID
+        self.variables_values = settings.FAST2SMS_VARIABLES_VALUES
+        self.media_url = settings.FAST2SMS_MEDIA_URL
+        
+        if not all([
+            self.message_id, 
+            self.phone_number_id, 
+            self.variables_values, 
+            self.media_url
+        ]):
+            logger.warning(
+                "One or more Fast2SMS template variables (message_id, phone_number_id, "
+                "variables_values, media_url) are not set in environment variables"
+            )
 
     async def send_whatsapp_template(
         self,
@@ -49,13 +62,13 @@ class Fast2SMSService:
         if clean_number.startswith("91") and len(clean_number) == 12:
             clean_number = clean_number[2:]
         
-        # Hardcode all fields except numbers as requested
+        # Use dynamic fields fetched from environment variables
         params = {
-            "message_id": "33451",
-            "phone_number_id": "1052723054600851",
+            "message_id": self.message_id,
+            "phone_number_id": self.phone_number_id,
             "numbers": clean_number,
-            "variables_values": "7092688832|https://www.enabler.studio/#apply",
-            "media_url": "https://cumma-images.s3.eu-north-1.amazonaws.com/enabler_studio.png",
+            "variables_values": self.variables_values,
+            "media_url": self.media_url,
         }
         
         headers = {

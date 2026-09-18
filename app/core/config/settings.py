@@ -69,6 +69,10 @@ class Settings(BaseSettings):
     # External services
     EXTERNAL_API_BASE_URL: Optional[str] = None
     WHATSAPP_API_KEY: Optional[str] = None
+    FAST2SMS_MESSAGE_ID: Optional[str] = None
+    FAST2SMS_PHONE_NUMBER_ID: Optional[str] = None
+    FAST2SMS_VARIABLES_VALUES: Optional[str] = None
+    FAST2SMS_MEDIA_URL: Optional[str] = None
 
     # Database (placeholder for future use)
     DATABASE_URL: Optional[str] = None
