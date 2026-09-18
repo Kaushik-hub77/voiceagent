@@ -5,24 +5,40 @@ RingAI call endpoints
 import logging
 from typing import Dict, Any
 
-from fastapi import APIRouter, HTTPException, status, UploadFile, File, Form
+from fastapi import APIRouter, HTTPException, status, UploadFile, File, Form, BackgroundTasks
 from fastapi.responses import JSONResponse
+from typing import Dict, Any, Optional
 
 from app.core.ringai.client import RingAIError, RingAIAuthenticationError, RingAIAPIError
 from app.core.utils.logger import get_logger
 from app.schemas.ringai.requests import InitiateCallRequest, StartCampaignRequest
 from app.schemas.ringai.responses import CallInitiatedResponse, SaveCampaignResponse, StartCampaignResponse
 from app.services.ringai.call_service import RingAICallService
+from app.services.fast2sms_service import Fast2SMSService
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/ringai", tags=["ringai"])
 
-# Initialize service
+# Initialize services
 _call_service = RingAICallService()
+_fast2sms_service = Fast2SMSService()
+
+async def _send_whatsapp_followup(mobile_number: str, call_id: Optional[str] = None) -> None:
+    """Dispatches WhatsApp template upon call initiation."""
+    try:
+        await _fast2sms_service.send_whatsapp_template(
+            mobile_number=mobile_number,
+            variables=[],
+            media_url="https://cumma-images.s3.eu-north-1.amazonaws.com/enabler_studio.png",
+            udf1=call_id,
+        )
+        logger.info("WhatsApp followup dispatched successfully", call_id=call_id)
+    except Exception as e:
+        logger.error("Failed to dispatch WhatsApp followup", call_id=call_id, error=str(e))
 
 
 @router.post("/calls", response_model=CallInitiatedResponse, status_code=status.HTTP_201_CREATED)
-async def initiate_call(request: InitiateCallRequest) -> CallInitiatedResponse:
+async def initiate_call(request: InitiateCallRequest, background_tasks: BackgroundTasks) -> CallInitiatedResponse:
     """
     Initiate an outbound call via RingAI
 
@@ -50,6 +66,14 @@ async def initiate_call(request: InitiateCallRequest) -> CallInitiatedResponse:
 
     try:
         response = await _call_service.initiate_call(request)
+        
+        # Schedule post-call WhatsApp follow-up in background immediately upon call initiation
+        background_tasks.add_task(
+            _send_whatsapp_followup, 
+            request.mobile_number, 
+            getattr(response, "call_id", None)
+        )
+        
         return response
 
     except RingAIAuthenticationError as e:

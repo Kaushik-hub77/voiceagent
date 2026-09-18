@@ -51,10 +51,10 @@ class Fast2SMSService:
         
         # Hardcode all fields except numbers as requested
         params = {
-            "message_id": "33426",
+            "message_id": "33451",
             "phone_number_id": "1052723054600851",
             "numbers": clean_number,
-            "variables_values": "8056310199|https://www.enabler.studio/#apply",
+            "variables_values": "7092688832|https://www.enabler.studio/#apply",
             "media_url": "https://cumma-images.s3.eu-north-1.amazonaws.com/enabler_studio.png",
         }
         

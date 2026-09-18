@@ -21,14 +21,12 @@ from app.schemas.ringai.webhooks import (
     process_transcript,
 )
 from app.services.ringai.recording_service import CallRecordingService
-from app.services.fast2sms_service import Fast2SMSService
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/ringai/webhooks", tags=["ringai-webhooks"])
 
 # Initialize services
 _recording_service = CallRecordingService()
-_fast2sms_service = Fast2SMSService()
 
 
 @router.post("/events", status_code=status.HTTP_200_OK)
@@ -70,16 +68,12 @@ async def handle_webhook_event(
         # Route to appropriate handler based on event type
         if event_type == "call_completed":
             await _handle_call_completed(payload)
-            # Schedule post-call WhatsApp follow-up in background
-            background_tasks.add_task(_send_whatsapp_followup, payload)
 
         elif event_type == "recording_completed":
             await _handle_recording_completed(payload)
 
         elif event_type == "platform_analysis_completed":
             await _handle_platform_analysis(payload)
-            # If dynamic extraction happens post-analysis, schedule follow-up here as well
-            background_tasks.add_task(_send_whatsapp_followup, payload)
 
         elif event_type == "client_analysis_completed":
             await _handle_client_analysis(payload)
@@ -105,56 +99,6 @@ async def handle_webhook_event(
             content={"status": "error", "message": "Error processed, check logs"},
         )
 
-
-async def _send_whatsapp_followup(payload: Dict[str, Any]) -> None:
-    """
-    Extracts dynamic variables captured by RingAI during the call and dispatches WhatsApp template.
-    """
-    call_id = payload.get("call_id")
-    to_number = payload.get("to_number") or payload.get("phone_number")
-
-    if not to_number:
-        logger.warning("Cannot send WhatsApp followup: missing recipient number", call_id=call_id)
-        return
-
-    # Consolidate user data extracted during the conversation
-    custom_args = payload.get("custom_args_values") or {}
-    extracted_vars = payload.get("extracted_variables") or {}
-    analysis_data = payload.get("analysis_data") or {}
-    
-    if isinstance(analysis_data, dict):
-        extracted_analysis = analysis_data.get("extracted_data") or {}
-    else:
-        extracted_analysis = {}
-
-    user_data = {**custom_args, **extracted_vars, **extracted_analysis}
-
-    logger.info(
-        "Extracting conversation variables for WhatsApp followup",
-        call_id=call_id,
-        available_keys=list(user_data.keys()),
-    )
-
-    # Map dynamic variables captured in call logs (e.g., callback number, target link)
-    contact_phone = user_data.get("callback_number") or user_data.get("phone_number") or to_number
-    target_link = user_data.get("application_url") or "https://www.enabler.studio/#apply"
-
-    # Strict formatting (no leading/trailing spaces) to pass Meta parameter checks
-    variables = [
-        str(contact_phone).strip(),
-        str(target_link).strip(),
-    ]
-
-    try:
-        response = await _fast2sms_service.send_whatsapp_template(
-            mobile_number=to_number,
-            variables=variables,
-            media_url="https://cumma-images.s3.eu-north-1.amazonaws.com/enabler_studio.png",
-            udf1=call_id,
-        )
-        logger.info("WhatsApp followup dispatched successfully", call_id=call_id, response=response)
-    except Exception as e:
-        logger.error("Failed to dispatch WhatsApp followup", call_id=call_id, error=str(e))
 
 
 async def _handle_call_completed(payload: Dict[str, Any]) -> None:
