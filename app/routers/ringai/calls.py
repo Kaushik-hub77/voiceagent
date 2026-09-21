@@ -66,14 +66,6 @@ async def initiate_call(request: InitiateCallRequest, background_tasks: Backgrou
 
     try:
         response = await _call_service.initiate_call(request)
-        
-        # Schedule post-call WhatsApp follow-up in background immediately upon call initiation
-        background_tasks.add_task(
-            _send_whatsapp_followup, 
-            request.mobile_number, 
-            getattr(response, "call_id", None)
-        )
-        
         return response
 
     except RingAIAuthenticationError as e:

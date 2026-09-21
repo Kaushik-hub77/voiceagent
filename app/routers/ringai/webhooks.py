@@ -140,6 +140,20 @@ async def _handle_call_completed(payload: Dict[str, Any]) -> None:
 
         await _recording_service.save_recording(recording)
 
+        # Dispatch post-call WhatsApp follow-up
+        try:
+            from app.services.fast2sms_service import Fast2SMSService
+            _fast2sms_service = Fast2SMSService()
+            await _fast2sms_service.send_whatsapp_template(
+                mobile_number=recording.phone_number,
+                variables=[],
+                media_url="https://cumma-images.s3.eu-north-1.amazonaws.com/enabler_studio.png",
+                udf1=event.call_id,
+            )
+            logger.info("WhatsApp followup dispatched successfully from webhook", call_id=event.call_id)
+        except Exception as e:
+            logger.error("Failed to dispatch WhatsApp followup from webhook", call_id=event.call_id, error=str(e))
+
         logger.info(
             "Call completed event processed",
             call_id=event.call_id,
