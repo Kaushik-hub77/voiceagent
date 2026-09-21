@@ -176,18 +176,18 @@ class RingAIClient:
         """
         Save a bulk calling campaign
         """
-        await self._ensure_client()
-
         endpoint = "/campaign/save"
         logger.info("Initiating campaign save", endpoint=endpoint)
 
         try:
-            # Override content type for multipart request
-            headers = {
-                "X-API-KEY": self.api_key
-            }
-            
-            response = await self._client.post(endpoint, data=data, files=files, headers=headers)
+            # Use a separate client WITHOUT the default Content-Type: application/json
+            # so httpx can auto-set the correct multipart/form-data boundary
+            async with AsyncClient(
+                base_url=self.base_url,
+                timeout=30.0,
+                headers={"X-API-KEY": self.api_key},
+            ) as multipart_client:
+                response = await multipart_client.post(endpoint, data=data, files=files)
             result = self._handle_response(response)
 
             logger.info("RingAI campaign saved successfully")
