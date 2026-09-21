@@ -103,6 +103,8 @@ async def handle_webhook_event(
 
 async def _handle_call_completed(payload: Dict[str, Any]) -> None:
     """Handle call_completed event"""
+    logger.info("========== WEBHOOK DEBUG: call_completed START ==========")
+    logger.info(f"Webhook payload: {payload}")
     try:
         event = CallCompletedEvent(**payload)
         
@@ -138,10 +140,12 @@ async def _handle_call_completed(payload: Dict[str, Any]) -> None:
             metadata=payload,
         )
 
+        logger.info(f"Parsed Recording Data: to_number={event.to_number}, from_number={event.from_number}, recording_phone_number={recording.phone_number}, call_type={event.call_type}")
         await _recording_service.save_recording(recording)
 
         # Dispatch post-call WhatsApp follow-up
         try:
+            logger.info(f"Attempting to dispatch WhatsApp to {recording.phone_number} for call {event.call_id}")
             from app.services.fast2sms_service import Fast2SMSService
             _fast2sms_service = Fast2SMSService()
             await _fast2sms_service.send_whatsapp_template(
@@ -164,6 +168,8 @@ async def _handle_call_completed(payload: Dict[str, Any]) -> None:
 
     except Exception as e:
         logger.error("Error handling call_completed event", error=str(e), call_id=payload.get("call_id"))
+    finally:
+        logger.info("========== WEBHOOK DEBUG: call_completed END ==========")
 
 
 async def _handle_recording_completed(payload: Dict[str, Any]) -> None:
