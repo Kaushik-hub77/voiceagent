@@ -78,6 +78,10 @@ async def handle_webhook_event(
         elif event_type == "client_analysis_completed":
             await _handle_client_analysis(payload)
 
+        elif event_type == "all_processing_completed":
+            logger.info("All processing completed event received", call_id=call_id)
+            # This is a cumulative event, we can safely ignore it since we process individual events
+
         else:
             logger.warning("Unknown event type", event_type=event_type, call_id=call_id)
             return JSONResponse(
